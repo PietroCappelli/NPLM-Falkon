@@ -79,9 +79,9 @@ class HEPModel:
         N_bkg_p = int(torch.distributions.Poisson(rate=self.N_BKG).sample())
         N_sig_p = int(torch.distributions.Poisson(rate=self.N_SIG).sample())
         
-        feature_ref_dist = torch.distributions.Exponential(rate=1)
+        feature_ref_dist = torch.distributions.Exponential(rate=8)
 
-        feature_bkg_dist = torch.distributions.Exponential(rate=1)
+        feature_bkg_dist = torch.distributions.Exponential(rate=8)
         feature_sig_dist = torch.distributions.Normal(loc=self.SIG_LOC, scale=self.SIG_STD)
         
         # generate the features
@@ -93,8 +93,10 @@ class HEPModel:
             )
         )
         # normalize
-        # feature_ref = feature_ref / feature_ref.max()
-        # feature_data = feature_data / feature_data.max()
+        # feature_ref  = (feature_ref - torch.mean(feature_ref)) / torch.std(feature_ref)
+        # feature_data = (feature_data - torch.mean(feature_data)) / torch.std(feature_data)
+        # feature_ref  = feature_ref / torch.max(feature_ref)
+        # feature_data = feature_data / torch.max(feature_data)
 
         # concatenate the features
         feature = torch.cat((feature_ref, feature_data), dim=0)
@@ -170,11 +172,11 @@ class HEPModel:
         weight = self.N_BKG / self.N_REF 
         self.build_model(model_parameters, weight)
 
-        Xtorch = feature
-        Ytorch = target   
+        # Xtorch = feature
+        # Ytorch = target   
 
         train_time = time.time()
-        self.fit(Xtorch, Ytorch)
+        self.fit(feature, target)
         train_time = time.time() - train_time
 
         ref_pred, data_pred = self.predict(feature_ref), self.predict(feature_data)
@@ -186,7 +188,7 @@ class HEPModel:
         t = 2 * (diff + torch.sum(data_pred).item()).item()
 
         del data_pred
-        return t, Xtorch, Ytorch#, Nw, train_time, ref_seed #, data_seed#, ref_pred.numpy().reshape(-1)#ref_pred
+        return t, feature, target#, Nw, train_time, ref_seed #, data_seed#, ref_pred.numpy().reshape(-1)#ref_pred
 
 
 
@@ -205,6 +207,3 @@ class HEPModel:
         """        
         with open(self.output_path + "/{}".format(fname), "a") as f:
             f.write("{},{},{},{},{},{},{}\n".format(i, t, Nw, train_time, ref_seed, sig_seed, self.model_seed))
-
-
-

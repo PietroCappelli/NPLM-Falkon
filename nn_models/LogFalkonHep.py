@@ -36,5 +36,6 @@ class LogFalkonHEPModel(HEPModel):
             'options' : FalkonOptions(cg_tolerance=cg_tol, keops_active=keops_active, use_cpu=use_cpu, debug = False),
             'loss' : WeightedCrossEntropyLoss(kernel=kernel, neg_weight=weight),
             'seed' : seed
+            # 'debug': True
         }
         self.model = LogisticFalkon(**configuration)
