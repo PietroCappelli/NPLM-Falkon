@@ -598,15 +598,15 @@ def plot_one_t(
     chi2_label     : str   = r"$\chi^2$",
     xlabel         : str   = r"$t$",
     ylabel         : str   = "Density",
-    show_plot      : bool  = True,
+    show_plot      : bool  = False,
     save_plot      : bool  = False,
     plot_name      : str   = "t_distribution",
     plot_path      : str   = "./",
     plot_format    : str   = "pdf",
     return_fig     : bool  = False,
     constrained    : bool  = True,
-    plot_w         : bool  = False,
-    wclip          : float = 9.0,
+    plot_params    : bool  = False,
+    hyperparams    : str   = "",
     ):  
 
     fig, ax = plt.subplots(figsize=figsize, constrained_layout=constrained)
@@ -688,18 +688,18 @@ def plot_one_t(
     ax.set_xlim(t_bins[0], t_bins[-1])
     
     if show_hist:
-        if plot_w: 
-            ax.legend([chisq, h], [chi2_label, hist_label], fontsize=fontsize-6, title = "$\it{w clip}$ = " + str(wclip), title_fontsize = fontsize-4)
+        if plot_params: 
+            ax.legend([chisq, h], [chi2_label, hist_label], fontsize=fontsize-6, title = "$(\lambda, M)$ = ("+ hyperparams+")", title_fontsize = fontsize-4)
         else:
             ax.legend([chisq, h], [chi2_label, hist_label], fontsize=fontsize-6)
     elif not show_hist and show_error:
-        if plot_w:
-            ax.legend([chisq, err], [chi2_label, hist_label], fontsize=fontsize-6, title = "$\it{w clip}$ = " + str(wclip), title_fontsize = fontsize-4)
+        if plot_params:
+            ax.legend([chisq, err], [chi2_label, hist_label], fontsize=fontsize-6, title = "$(\lambda, M)$ = ("+ hyperparams+")", title_fontsize = fontsize-4)
         else: 
             ax.legend([chisq, err], [chi2_label, hist_label], fontsize=fontsize-6)
     else:
-        if plot_w: 
-            ax.legend([chisq], [chi2_label], fontsize=fontsize-6, title = "$\it{w clip}$ = " + str(wclip))
+        if plot_params: 
+            ax.legend([chisq], [chi2_label], fontsize=fontsize-6, title = "$(\lambda, M)$ = ("+ hyperparams+")")
         else: 
             ax.legend([chisq], [chi2_label], fontsize=fontsize-5)
             
@@ -709,7 +709,7 @@ def plot_one_t(
     ax.set_ylabel(ylabel, fontsize=fontsize)
     
     if save_plot:
-        fig.savefig(plot_path + plot_name + "_wclip" + str(wclip) + "." + plot_format, format=plot_format, bbox_inches="tight", dpi=300, facecolor="white")
+        fig.savefig(plot_path + plot_name + "." + plot_format, format=plot_format, bbox_inches="tight", dpi=300, facecolor="white")
         
     if show_plot:
         plt.show()
