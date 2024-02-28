@@ -131,12 +131,12 @@ def run_toys(Ref, Data, config):
     current_date += str(datetime.now().hour)        + "_"
     current_date += str(datetime.now().minute)      
     
-    directory = current_date
-
-    if config['N_SIG']!=0:
-        directory = current_date + '_' + "sig" + "_" + str(config['N_SIG'])
+    directory = current_date + '_ref_' + str(config['N_REF']) + '_bkg_' + str(config['N_BKG']) + '_sig_' + str(config['N_SIG'])
+    # if config['N_SIG']!=0:
+    #     directory = current_date + '_' + "sig" + "_" + str(config['N_SIG'])
     if shape_only:
-        directory = current_date + '_' + "sig" + "_" + str(config['N_SIG']) + "_SOn"
+        # directory = current_date + '_' + "sig" + "_" + str(config['N_SIG']) + "_SOn"
+        directory = directory + "_SOn"
     OUTPUT_PATH = config['OUTPUT_PATH'] + directory
         
     os.makedirs(OUTPUT_PATH, exist_ok=True)
@@ -306,7 +306,7 @@ def save_csv_path(config, directory):
 
     pd.options.display.float_format = '{}'.format
     df_m.to_csv(OUTPUT_FILE, sep='\t', index=False)
-    print('data saved in:',OUTPUT_FILE)
+    print('results data saved in:',OUTPUT_FILE)
     
 
 if __name__ == "__main__":
@@ -325,17 +325,18 @@ if __name__ == "__main__":
     print(f"shapee only effect: {args.shape_only}")
     
     config = {
-        'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/',
+        'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/N_study/',
         'DATA_PATH'   : '/home/ubuntu/NPLM-Falkon/data/creditcard.csv',
-        'PLOT_PATH'   : '/home/ubuntu/NPLM-Falkon/plot/bank/',
+        'PLOT_PATH'   : '/home/ubuntu/NPLM-Falkon/plot/bank/N_study/',
         'toys'   : 100,
         'N_REF'  : args.N_REF,
         'N_BKG'  : args.N_BKG,
         'N_SIG'  : args.N_SIG,
-        'M_list' : [1500],#[500, 1000, 1500, 2000],
-        'l_list' : [1e-8],#[1e-6, 1e-7, 1e-8, 1e-9],
+        'M_list' : [500, 1000, 1500, 2000],
+        'l_list' : [1e-6, 1e-7, 1e-8, 1e-9],
         'sigma'  : None,
-        'shape_only' : args.shape_only
+        'shape_only' : args.shape_only,
+        'distribution_path' : None
     }
     
     Ref, Data = load_data(config)
@@ -348,8 +349,10 @@ if __name__ == "__main__":
     # read_and_plot(config)
     
     json_file = config['OUTPUT_PATH'] + dir +'/'+ dir +'.json'
-    with open(json_file, "w") as outfile: 
-        json.dump(config, outfile, indent=4)    
-    
-    print(dir)
-    save_csv_path(config, dir)
+    if config['N_SIG']!=0:
+        config['distribution_path'] = config['OUTPUT_PATH'] + dir + '/ttest_time_'+str(config['l_list'][0])+'_'+str(config['M_list'][0])+'.csv'
+        with open(json_file, "w") as outfile: 
+            json.dump(config, outfile, indent=4)    
+
+    if config['N_SIG'] == 0: 
+        save_csv_path(config, dir)

@@ -772,6 +772,9 @@ def plot_two_t(
     plot_format        : str   = "pdf",
     return_fig         : bool  = False,
     constrained        : bool  = True,
+    plot_params        : bool  = False,
+    hyperparams        : str   = "",
+    N_SIG              : int   = None
     ):  
 
     fig, ax = plt.subplots(figsize=figsize, constrained_layout=constrained)
@@ -915,7 +918,11 @@ def plot_two_t(
     )[0]
     
     if show_hist_1 and show_hist_2:
-        ax.legend([chisq, h_1, h_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6)
+        if plot_params:
+            ax.legend([chisq, h_1, h_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6, title = "N(S) = "+str(N_SIG) , title_fontsize = fontsize-4)
+            # ax.legend([chisq, h_1, h_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6, title = "$(\lambda, M)$ = ("+ hyperparams+") N(S) = "+str(N_SIG) , title_fontsize = fontsize-4)
+        else:
+            ax.legend([chisq, h_1, h_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6)
     if show_hist_1 and not show_hist_2 and show_error_2:
         ax.legend([chisq, h_1, err_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6)
     if not show_hist_1 and show_hist_2 and show_error_1:
@@ -930,7 +937,7 @@ def plot_two_t(
         ax.legend([chisq, err_1], [chi2_label, hist_label_1], fontsize=fontsize-6)
     if not show_hist_1 and not show_hist_2 and not show_error_1 and show_error_2:
         ax.legend([chisq, err_2], [chi2_label, hist_label_2], fontsize=fontsize-6)
-    
+
     
     ax.set_ylim(bottom=0)
     
