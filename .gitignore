@@ -2,3 +2,4 @@ cuda*
 output/*
 plot/*
 data/*
+*.sh
