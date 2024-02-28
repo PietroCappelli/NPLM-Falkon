@@ -2,6 +2,7 @@ import os
 import sys
 import csv
 import time
+import json
 import itertools
 import argparse
 import numpy as np
@@ -62,10 +63,15 @@ def learn_t(Ref, Data, config_json: dict):
     l = config_json['l']
     sigma = config_json['sigma']
     
-    # np.random.seed(time.time())
+    shape_only = config_json['shape_only']
+    
+    if shape_only:
+        N_bkg_obs = N_BKG - N_SIG
+    else: 
+        N_bkg_obs = N_BKG
 
     # select a random chosen subset of the dataset
-    idx_ref = np.random.choice(Ref.shape[0], N_REF+N_BKG, replace=False)
+    idx_ref = np.random.choice(Ref.shape[0], N_REF+N_bkg_obs, replace=False)
     idx_sig = np.random.choice(Data.shape[0], N_SIG, replace=False)
 
     feature_ref  = torch.from_numpy(Ref[idx_ref[:N_REF], :])
@@ -74,13 +80,12 @@ def learn_t(Ref, Data, config_json: dict):
     feature_data = torch.cat((feature_bkg, feature_sig), dim=0)
 
     target_ref  = torch.zeros((N_REF, 1), dtype=torch.float64)
-    target_data = torch.ones((N_BKG + N_SIG, 1), dtype=torch.float64)
+    target_data = torch.ones((N_bkg_obs + N_SIG, 1), dtype=torch.float64)
 
     feature = torch.cat((feature_ref, feature_data), axis=0)
     target  = torch.cat((target_ref, target_data), axis=0)
 
-    # print('feature shape:', feature.shape)
-    # print('feature shape:', target.shape)
+    print('feature shape:', feature.shape, '\ttarget shape:', target.shape)
 
     '''DEFINE THE MODEL'''
     
@@ -118,14 +123,22 @@ def run_toys(Ref, Data, config):
     toys = config['toys']
     M_list = config['M_list']
     l_list = config['l_list']
+    shape_only = config['shape_only']
     
     current_date  = str(datetime.now().year)        + "_"
     current_date += str(datetime.now().month)       + "_"
     current_date += str(datetime.now().day)         + "_"
-    current_date += str(datetime.now().hour)        + "-"
+    current_date += str(datetime.now().hour)        + "_"
     current_date += str(datetime.now().minute)      
-    OUTPUT_PATH = config['OUTPUT_PATH'] + current_date
     
+    directory = current_date
+
+    if config['N_SIG']!=0:
+        directory = current_date + '_' + "sig" + "_" + str(config['N_SIG'])
+    if shape_only:
+        directory = current_date + '_' + "sig" + "_" + str(config['N_SIG']) + "_SOn"
+    OUTPUT_PATH = config['OUTPUT_PATH'] + directory
+        
     os.makedirs(OUTPUT_PATH, exist_ok=True)
 
     t_list = []
@@ -140,6 +153,7 @@ def run_toys(Ref, Data, config):
                 "M"     : M,
                 "l"     : l,
                 "sigma" : config["sigma"],
+                "shape_only" :  config['shape_only']
                 }
             for _ in range(toys):
                 train_start = time.time()
@@ -149,19 +163,18 @@ def run_toys(Ref, Data, config):
                 
                 FILE_NAME = "/ttest_time_"+str(l) +"_"+ str(M) + ".csv"
                 
-                ti = time.time()
                 with open(OUTPUT_PATH + FILE_NAME, "a", newline="\n") as f:
                     writer = csv.writer(f, dialect="excel" ,delimiter="\t")
                     writer.writerow([t, (train_stop-train_start)])
-                tf = time.time()
-                # print(tf-ti)
                 
             t_M_list.append(t_list_tmp)
             del t_list_tmp
         t_list.append(t_M_list)
         del t_M_list
+        
+    print('data saved in:',OUTPUT_PATH)
     
-    return t_list, current_date
+    return t_list, directory
     
 def extract_l_M(file):
     file = file.replace("ttest_time_", "")
@@ -175,7 +188,7 @@ def extract_l_M(file):
     return float(l), int(m)
     
 
-def read_and_save(config):
+def read_and_plot(config, PATH):
 
     PATH = config['OUTPUT_PATH']
     for dir in os.listdir(PATH):
@@ -193,48 +206,48 @@ def read_and_save(config):
         
             t_ref_bins  = np.arange(int(np.min(t_list))-100, int(np.max(t_list))+100, 30)
             xgrid_ref   = np.arange(int(np.min(t_list))-100, int(np.max(t_list))+100, 2)
-            plot_one_t(
-                t_distribution  = t_list,
-                t_bins          = t_ref_bins,
-                chi2            = chi2(df=dof_fit),
-                chi2_grid       = xgrid_ref,
-                show_hist       = True,
-                show_error      = False,
-                compute_rate    = False,
-                err_marker      = "o",
-                err_markersize  = 10,
-                err_capsize     = 5,
-                err_elinewidth  = 4,
-                err_capthick    = 4,
-                err_color       = "black",
-                figsize         = (10, 8),
-                fontsize        = 18,
-                cms             = False,
-                cms_label       = "",
-                cms_rlabel      = "",
-                hist_ecolor     = ("#494B69", 1.0),
-                hist_fcolor     = ("#494B69", 0.1),
-                chi2_color      = ("#D8707C", 0.8),
-                hist_lw         = 4,
-                chi2_lw         = 8,
-                hist_type       = "stepfilled",
-                hist_label      = "$\it{t}$ distribution",
-                chi2_label      = "Target $\chi^2$(dof=%.2f)"%(dof_fit),
-                xlabel          = r"$t$",
-                ylabel          = "Density",
-                show_plot       = False,
-                save_plot       = False,
-                plot_name       = "t_distribution_"+str(l)+"_"+str(m),
-                plot_path       = config['PLOT_PATH'],
-                plot_format     = "png",
-                return_fig      = False,
-                plot_params     = False,
-                hyperparams     = str(l)+", "+str(m),
-        )
+        #     plot_one_t(
+        #         t_distribution  = t_list,
+        #         t_bins          = t_ref_bins,
+        #         chi2            = chi2(df=dof_fit),
+        #         chi2_grid       = xgrid_ref,
+        #         show_hist       = True,
+        #         show_error      = False,
+        #         compute_rate    = False,
+        #         err_marker      = "o",
+        #         err_markersize  = 10,
+        #         err_capsize     = 5,
+        #         err_elinewidth  = 4,
+        #         err_capthick    = 4,
+        #         err_color       = "black",
+        #         figsize         = (10, 8),
+        #         fontsize        = 18,
+        #         cms             = False,
+        #         cms_label       = "",
+        #         cms_rlabel      = "",
+        #         hist_ecolor     = ("#494B69", 1.0),
+        #         hist_fcolor     = ("#494B69", 0.1),
+        #         chi2_color      = ("#D8707C", 0.8),
+        #         hist_lw         = 4,
+        #         chi2_lw         = 8,
+        #         hist_type       = "stepfilled",
+        #         hist_label      = "$\it{t}$ distribution",
+        #         chi2_label      = "Target $\chi^2$(dof=%.2f)"%(dof_fit),
+        #         xlabel          = r"$t$",
+        #         ylabel          = "Density",
+        #         show_plot       = False,
+        #         save_plot       = False,
+        #         plot_name       = "t_distribution_"+str(l)+"_"+str(m),
+        #         plot_path       = config['PLOT_PATH'],
+        #         plot_format     = "png",
+        #         return_fig      = False,
+        #         plot_params     = False,
+        #         hyperparams     = str(l)+", "+str(m),
+        # )
 
-def save_csv(config):
+def save_csv(config, filename):
     PATH = config['OUTPUT_PATH']
-    OUTPUT_FILE = PATH +"results"+ "/results.csv"
+    OUTPUT_FILE = PATH +"results"+ filename#"/results.csv"
 
     df_m = pd.DataFrame(columns=['lambda', 'M', 'p_value', 'dof','mean', 'median', 'timing'])
     for dir in os.listdir(PATH):
@@ -259,6 +272,42 @@ def save_csv(config):
     pd.options.display.float_format = '{}'.format
     df_m.to_csv(OUTPUT_FILE, sep='\t', index=False)
     
+def save_csv_path(config, directory):
+    
+    '''SAVE IN A CSV FILE {p_value, dof, mean, median, timing} 
+        OF THE DISTRIBUTION '''
+
+    OUTPUT_PATH = config['OUTPUT_PATH'] + directory
+    OUTPUT_FILE = config['OUTPUT_PATH'] + 'results/' + directory + '.csv'
+    if config['N_SIG'] != 0 :
+        OUTPUT_FILE = config['OUTPUT_PATH'] +'results/'+ directory + '_' + str(config['N_SIG']) +'.csv'
+    if config['shape_only']:
+        OUTPUT_FILE = config['OUTPUT_PATH'] +'results/'+ directory + '_' + str(config['N_SIG'])+ "_SOn" +'.csv'
+
+
+    df_m = pd.DataFrame(columns=['lambda', 'M', 'p_value', 'dof','mean', 'median', 'timing'])
+    for file in os.listdir(OUTPUT_PATH):
+        if '.json' not in file:
+            with open(OUTPUT_PATH +'/'+ str(file)) as f:
+                t_list = np.array([float(row.split()[0]) for row in f])
+            with open(OUTPUT_PATH +'/'+ str(file)) as f:
+                timing = np.array([float(row.split()[1]) for row in f])
+            l,m = extract_l_M(file)
+            dof_fit, _, _ = chi2.fit(t_list, floc=0, fscale=1)
+            _, ks_p_value = stats.kstest(t_list, "chi2", args=(dof_fit,))
+            df_m = pd.concat([pd.DataFrame([[l,m, ks_p_value, dof_fit, np.mean(t_list), np.median(t_list), np.mean(timing)]], columns=df_m.columns), df_m], ignore_index=True)
+
+    df_m = df_m.sort_values('lambda', ascending =False)
+    df_m['p_value'] = df_m['p_value'].round(4)
+    df_m['dof']     = df_m['dof'].round(2)
+    df_m['mean']    = df_m['mean'].round(3)
+    df_m['median']  = df_m['median'].round(3)
+    df_m['timing']  = df_m['timing'].round(3)
+
+    pd.options.display.float_format = '{}'.format
+    df_m.to_csv(OUTPUT_FILE, sep='\t', index=False)
+    print('data saved in:',OUTPUT_FILE)
+    
 
 if __name__ == "__main__":
     
@@ -266,24 +315,27 @@ if __name__ == "__main__":
     
     parser.add_argument("-Nr", "--N_REF", type=int, help="size of reference dataset",  required=False, default=3000)
     parser.add_argument("-Nb", "--N_BKG", type=int, help="size of background dataset", required=False, default=1000)
-    parser.add_argument("-Ns", "--N_SIG", type=int, help="number of signal events (shape and normalization)", required=False, default=0)
+    parser.add_argument("-Ns", "--N_SIG", type=int, help="number of signal events ",   required=False, default=0)
+    parser.add_argument("-SO", "--shape_only", type=bool,help="Shape-only signal effect",  required=False, default=False)
     
     args = parser.parse_args()
     print(f"number of ref: {args.N_REF}")
     print(f"number of bkg: {args.N_BKG}")
     print(f"number of sig: {args.N_SIG}")
+    print(f"shapee only effect: {args.shape_only}")
     
     config = {
         'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/',
         'DATA_PATH'   : '/home/ubuntu/NPLM-Falkon/data/creditcard.csv',
         'PLOT_PATH'   : '/home/ubuntu/NPLM-Falkon/plot/bank/',
-        'toys'   : 80,
+        'toys'   : 100,
         'N_REF'  : args.N_REF,
         'N_BKG'  : args.N_BKG,
         'N_SIG'  : args.N_SIG,
-        'M_list' : [500,1000, 1500, 2000],
-        'l_list' : [1e-6, 1e-7, 1e-8, 1e-9],
-        'sigma'  : None,    
+        'M_list' : [1500],#[500, 1000, 1500, 2000],
+        'l_list' : [1e-8],#[1e-6, 1e-7, 1e-8, 1e-9],
+        'sigma'  : None,
+        'shape_only' : args.shape_only
     }
     
     Ref, Data = load_data(config)
@@ -292,6 +344,12 @@ if __name__ == "__main__":
     distances = pairwise_distances(subset, metric='l2')
     config['sigma'] = np.quantile(distances, 0.90)
     
-    t_list, output_date = run_toys(Ref, Data, config)
-    read_and_save(config)
-    save_csv(config)
+    t_list, dir = run_toys(Ref, Data, config)
+    # read_and_plot(config)
+    
+    json_file = config['OUTPUT_PATH'] + dir +'/'+ dir +'.json'
+    with open(json_file, "w") as outfile: 
+        json.dump(config, outfile, indent=4)    
+    
+    print(dir)
+    save_csv_path(config, dir)
