@@ -19,8 +19,8 @@ from sklearn.metrics.pairwise import pairwise_distances
 import torch
 import falkon
 
-sys.path.insert(0, "../notebooks")
-from plot_utils import plot_one_t
+# sys.path.insert(0, "../notebooks")
+# from plot_utils import plot_one_t
 
 
 def load_data(config : dict):
@@ -66,13 +66,15 @@ def learn_t(Ref, Data, config_json: dict):
     shape_only = config_json['shape_only']
     
     if shape_only:
-        N_bkg_obs = N_BKG - N_SIG
+        N_sig_obs = np.random.poisson(lam=N_SIG)
+        N_bkg_obs = N_BKG - N_sig_obs
     else: 
-        N_bkg_obs = N_BKG
+        N_bkg_obs = np.random.poisson(lam=N_BKG)
+        N_sig_obs = np.random.poisson(lam=N_SIG)
 
     # select a random chosen subset of the dataset
     idx_ref = np.random.choice(Ref.shape[0], N_REF+N_bkg_obs, replace=False)
-    idx_sig = np.random.choice(Data.shape[0], N_SIG, replace=False)
+    idx_sig = np.random.choice(Data.shape[0], N_sig_obs, replace=False)
 
     feature_ref  = torch.from_numpy(Ref[idx_ref[:N_REF], :])
     feature_bkg  = torch.from_numpy(Ref[idx_ref[N_REF:], :])
@@ -80,7 +82,7 @@ def learn_t(Ref, Data, config_json: dict):
     feature_data = torch.cat((feature_bkg, feature_sig), dim=0)
 
     target_ref  = torch.zeros((N_REF, 1), dtype=torch.float64)
-    target_data = torch.ones((N_bkg_obs + N_SIG, 1), dtype=torch.float64)
+    target_data = torch.ones((N_bkg_obs + N_sig_obs, 1), dtype=torch.float64)
 
     feature = torch.cat((feature_ref, feature_data), axis=0)
     target  = torch.cat((target_ref, target_data), axis=0)
@@ -91,6 +93,7 @@ def learn_t(Ref, Data, config_json: dict):
     
     logflk_opt = falkon.FalkonOptions(cg_tolerance=np.sqrt(1e-7), keops_active='no', use_cpu=False, debug = False)
     logflk_kernel = falkon.kernels.GaussianKernel(sigma=sigma,  opt=logflk_opt)
+    # logloss = falkon.gsc_losses.WeightedCrossEntropyLoss(logflk_kernel, neg_weight = N_BKG/N_REF)
     logloss = falkon.gsc_losses.WeightedCrossEntropyLoss(logflk_kernel, neg_weight = N_BKG/N_REF)
 
     config = {
@@ -111,7 +114,6 @@ def learn_t(Ref, Data, config_json: dict):
     ref_pred, data_pred = logflk.predict(feature_ref), logflk.predict(feature_data)
     diff = N_BKG/N_REF *torch.sum(1 - torch.exp(ref_pred))
     t = 2 * (diff + torch.sum(data_pred).item()).item()
-    
     return t
     
 
@@ -313,7 +315,7 @@ if __name__ == "__main__":
     
     parser = argparse.ArgumentParser()
     
-    parser.add_argument("-Nr", "--N_REF", type=int, help="size of reference dataset",  required=False, default=3000)
+    parser.add_argument("-Nr", "--N_REF", type=int, help="size of reference dataset",  required=False, default=5000)
     parser.add_argument("-Nb", "--N_BKG", type=int, help="size of background dataset", required=False, default=1000)
     parser.add_argument("-Ns", "--N_SIG", type=int, help="number of signal events ",   required=False, default=0)
     parser.add_argument("-SO", "--shape_only", type=bool,help="Shape-only signal effect",  required=False, default=False)
@@ -325,20 +327,23 @@ if __name__ == "__main__":
     print(f"shapee only effect: {args.shape_only}")
     
     config = {
-        'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/N_study/',
+        'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/Shape_and_Renorm/',
         'DATA_PATH'   : '/home/ubuntu/NPLM-Falkon/data/creditcard.csv',
         'PLOT_PATH'   : '/home/ubuntu/NPLM-Falkon/plot/bank/N_study/',
-        'toys'   : 100,
+        'toys'   : 80,
         'N_REF'  : args.N_REF,
         'N_BKG'  : args.N_BKG,
         'N_SIG'  : args.N_SIG,
-        'M_list' : [500, 1000, 1500, 2000],
-        'l_list' : [1e-6, 1e-7, 1e-8, 1e-9],
+        'M_list' : [2000],
+        'l_list' : [1e-7],
         'sigma'  : None,
         'shape_only' : args.shape_only,
         'distribution_path' : None
     }
     
+    
+    # os.makedirs(config['OUTPUT_PATH'], exist_ok=True)
+
     Ref, Data = load_data(config)
     idx= np.random.choice(Ref.shape[0], 10_000, replace=False)
     subset = Ref[idx]
