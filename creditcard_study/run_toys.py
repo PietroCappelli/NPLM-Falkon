@@ -114,6 +114,8 @@ def learn_t(Ref, Data, config_json: dict):
     ref_pred, data_pred = logflk.predict(feature_ref), logflk.predict(feature_data)
     diff = N_BKG/N_REF *torch.sum(1 - torch.exp(ref_pred))
     t = 2 * (diff + torch.sum(data_pred).item()).item()
+    print("diff term",diff.item())
+    print("t ",t)
     return t
     
 
@@ -345,10 +347,11 @@ if __name__ == "__main__":
     # os.makedirs(config['OUTPUT_PATH'], exist_ok=True)
 
     Ref, Data = load_data(config)
-    idx= np.random.choice(Ref.shape[0], 10_000, replace=False)
-    subset = Ref[idx]
-    distances = pairwise_distances(subset, metric='l2')
-    config['sigma'] = np.quantile(distances, 0.90)
+    # idx= np.random.choice(Ref.shape[0], 10_000, replace=False)
+    # subset = Ref[idx]
+    # distances = pairwise_distances(subset, metric='l2')
+    # config['sigma'] = np.quantile(distances, 0.90)
+    config['sigma'] = 9.5
     
     t_list, dir = run_toys(Ref, Data, config)
     # read_and_plot(config)

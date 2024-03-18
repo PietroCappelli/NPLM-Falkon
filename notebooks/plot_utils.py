@@ -774,7 +774,7 @@ def plot_two_t(
     constrained        : bool  = True,
     plot_params        : bool  = False,
     hyperparams        : str   = "",
-    N_SIG              : int   = None
+    N_SIG              : int   = None,
     ):  
 
     fig, ax = plt.subplots(figsize=figsize, constrained_layout=constrained)
@@ -917,9 +917,11 @@ def plot_two_t(
         zorder=10
     )[0]
     
+    t_obs = ax.axvline(x=np.median(t_distribution_2), color="#D8707C", linestyle='--', linewidth=4, alpha=1, label="t obs")
+    
     if show_hist_1 and show_hist_2:
         if plot_params:
-            ax.legend([chisq, h_1, h_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6, title = "N(S) = "+str(N_SIG) , title_fontsize = fontsize-4)
+            ax.legend([chisq, h_1, h_2, t_obs], [chi2_label, hist_label_1, hist_label_2, "t_obs"], fontsize=fontsize-6, title = "N(S) = "+str(N_SIG) , title_fontsize = fontsize-4)
             # ax.legend([chisq, h_1, h_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6, title = "$(\lambda, M)$ = ("+ hyperparams+") N(S) = "+str(N_SIG) , title_fontsize = fontsize-4)
         else:
             ax.legend([chisq, h_1, h_2], [chi2_label, hist_label_1, hist_label_2], fontsize=fontsize-6)
