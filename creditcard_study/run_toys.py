@@ -116,8 +116,8 @@ def learn_t(Ref, Data, config_json: dict):
     t = 2 * (diff + torch.sum(data_pred).item()).item()
     print("diff term",diff.item())
     print("t ",t)
-    return t
-    
+    return t, diff.item()
+
 
 
 def run_toys(Ref, Data, config):
@@ -161,7 +161,7 @@ def run_toys(Ref, Data, config):
                 }
             for _ in range(toys):
                 train_start = time.time()
-                t = learn_t(Ref, Data, config_train)
+                t, diff = learn_t(Ref, Data, config_train)
                 train_stop = time.time()
                 t_list_tmp.append(t)
                 
@@ -169,7 +169,7 @@ def run_toys(Ref, Data, config):
                 
                 with open(OUTPUT_PATH + FILE_NAME, "a", newline="\n") as f:
                     writer = csv.writer(f, dialect="excel" ,delimiter="\t")
-                    writer.writerow([t, (train_stop-train_start)])
+                    writer.writerow([t, diff, (train_stop-train_start)])
                 
             t_M_list.append(t_list_tmp)
             del t_list_tmp
@@ -253,18 +253,21 @@ def save_csv(config, filename):
     PATH = config['OUTPUT_PATH']
     OUTPUT_FILE = PATH +"results"+ filename#"/results.csv"
 
-    df_m = pd.DataFrame(columns=['lambda', 'M', 'p_value', 'dof','mean', 'median', 'timing'])
+    df_m = pd.DataFrame(columns=['lambda', 'M', 'p_value', 'dof','mean', 'median', 'diff','timing'])
     for dir in os.listdir(PATH):
         if(str(dir)!="results"):
             for file in os.listdir(PATH+str(dir)):
                 with open(PATH + str(dir) +'/'+ str(file)) as f:
                     t_list = np.array([float(row.split()[0]) for row in f])
                 with open(PATH + str(dir) +'/'+ str(file)) as f:
-                    timing = np.array([float(row.split()[1]) for row in f])
+                    diff_list = np.array([float(row.split()[1]) for row in f])
+                with open(PATH + str(dir) +'/'+ str(file)) as f:
+                    timing = np.array([float(row.split()[2]) for row in f])
+                    # timing = np.array([float(row.split()[1]) for row in f])
                 l,m = extract_l_M(file)
                 dof_fit, _, _ = chi2.fit(t_list, floc=0, fscale=1)
                 _, ks_p_value = stats.kstest(t_list, "chi2", args=(dof_fit,))
-                df_m = pd.concat([pd.DataFrame([[l,m, ks_p_value, dof_fit, np.mean(t_list), np.median(t_list), np.mean(timing)]], columns=df_m.columns), df_m], ignore_index=True)
+                df_m = pd.concat([pd.DataFrame([[l,m, ks_p_value, dof_fit, np.mean(t_list), np.median(t_list), np.median(diff_list), np.mean(timing)]], columns=df_m.columns), df_m], ignore_index=True)
 
     df_m = df_m.sort_values('lambda', ascending =False)
     df_m['p_value'] = df_m['p_value'].round(4)
@@ -289,23 +292,26 @@ def save_csv_path(config, directory):
         OUTPUT_FILE = config['OUTPUT_PATH'] +'results/'+ directory + '_' + str(config['N_SIG'])+ "_SOn" +'.csv'
 
 
-    df_m = pd.DataFrame(columns=['lambda', 'M', 'p_value', 'dof','mean', 'median', 'timing'])
+    df_m = pd.DataFrame(columns=['lambda', 'M', 'p_value', 'dof','mean', 'median', 'diff','timing'])
     for file in os.listdir(OUTPUT_PATH):
         if '.json' not in file:
             with open(OUTPUT_PATH +'/'+ str(file)) as f:
                 t_list = np.array([float(row.split()[0]) for row in f])
+            with open(OUTPUT_PATH + str(dir) +'/'+ str(file)) as f:
+                    diff_list = np.array([float(row.split()[1]) for row in f])
             with open(OUTPUT_PATH +'/'+ str(file)) as f:
-                timing = np.array([float(row.split()[1]) for row in f])
+                timing = np.array([float(row.split()[2]) for row in f])
             l,m = extract_l_M(file)
             dof_fit, _, _ = chi2.fit(t_list, floc=0, fscale=1)
             _, ks_p_value = stats.kstest(t_list, "chi2", args=(dof_fit,))
-            df_m = pd.concat([pd.DataFrame([[l,m, ks_p_value, dof_fit, np.mean(t_list), np.median(t_list), np.mean(timing)]], columns=df_m.columns), df_m], ignore_index=True)
+            df_m = pd.concat([pd.DataFrame([[l,m, ks_p_value, dof_fit, np.mean(t_list), np.median(t_list), np.median(diff_list), np.mean(timing)]], columns=df_m.columns), df_m], ignore_index=True)
 
     df_m = df_m.sort_values('lambda', ascending =False)
     df_m['p_value'] = df_m['p_value'].round(4)
     df_m['dof']     = df_m['dof'].round(2)
     df_m['mean']    = df_m['mean'].round(3)
     df_m['median']  = df_m['median'].round(3)
+    df_m['diff']    = df_m['diff'].round(3)
     df_m['timing']  = df_m['timing'].round(3)
 
     pd.options.display.float_format = '{}'.format
@@ -320,7 +326,7 @@ if __name__ == "__main__":
     parser.add_argument("-Nr", "--N_REF", type=int, help="size of reference dataset",  required=False, default=5000)
     parser.add_argument("-Nb", "--N_BKG", type=int, help="size of background dataset", required=False, default=1000)
     parser.add_argument("-Ns", "--N_SIG", type=int, help="number of signal events ",   required=False, default=0)
-    parser.add_argument("-SO", "--shape_only", type=bool,help="Shape-only signal effect",  required=False, default=False)
+    parser.add_argument("-SO", "--shape_only", type=bool,help="Shape-only signal effect",  required=False, default=False    )
     
     args = parser.parse_args()
     print(f"number of ref: {args.N_REF}")
@@ -329,10 +335,13 @@ if __name__ == "__main__":
     print(f"shapee only effect: {args.shape_only}")
     
     config = {
-        'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/Shape_and_Renorm/',
-        'DATA_PATH'   : '/home/ubuntu/NPLM-Falkon/data/creditcard.csv',
-        'PLOT_PATH'   : '/home/ubuntu/NPLM-Falkon/plot/bank/N_study/',
-        'toys'   : 80,
+        # 'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/Shape_and_Renorm/',
+        # 'DATA_PATH'   : '/home/ubuntu/NPLM-Falkon/data/creditcard.csv',
+        # 'PLOT_PATH'   : '/home/ubuntu/NPLM-Falkon/plot/bank/N_study/',
+        'OUTPUT_PATH' : '/home/cappelli/NPLM-Falkon/output/bank_data/Shape_and_Renorm/',
+        'DATA_PATH'   : '/home/cappelli/NPLM-Falkon/data/creditcard.csv',
+        'PLOT_PATH'   : '/home/cappelli/NPLM-Falkon/plot/bank/N_study/',
+        'toys'   : 200,
         'N_REF'  : args.N_REF,
         'N_BKG'  : args.N_BKG,
         'N_SIG'  : args.N_SIG,
@@ -342,17 +351,15 @@ if __name__ == "__main__":
         'shape_only' : args.shape_only,
         'distribution_path' : None
     }
-    
-    
     # os.makedirs(config['OUTPUT_PATH'], exist_ok=True)
 
     Ref, Data = load_data(config)
-    # idx= np.random.choice(Ref.shape[0], 10_000, replace=False)
-    # subset = Ref[idx]
-    # distances = pairwise_distances(subset, metric='l2')
-    # config['sigma'] = np.quantile(distances, 0.90)
-    config['sigma'] = 9.5
-    
+    idx= np.random.choice(Ref.shape[0], 10_000, replace=False)
+    subset = Ref[idx]
+    distances = pairwise_distances(subset, metric='l2')
+    config['sigma'] = np.quantile(distances, 0.90)
+    # config['sigma'] = 9.5
+    print(config)
     t_list, dir = run_toys(Ref, Data, config)
     # read_and_plot(config)
     

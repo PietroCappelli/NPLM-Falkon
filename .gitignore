@@ -3,4 +3,4 @@ output/*
 plot/*
 data/*
 *.sh
-creditcard_study/__pycache__/*
+*/__pycache__/*

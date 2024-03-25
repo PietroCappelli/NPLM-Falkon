@@ -111,8 +111,8 @@ def learn_t(Ref, Data, config_json: dict):
     logflk.fit(feature, target)
     ref_pred, data_pred = logflk.predict(feature_ref), logflk.predict(feature_data)
     diff = N_BKG/N_REF *torch.sum(1 - torch.exp(ref_pred))
-    t = 2 * (diff + torch.sum(data_pred).item()).item()
-    # t = 2 * (torch.sum(data_pred)).item()
+    # t = 2 * (diff + torch.sum(data_pred).item()).item()
+    t = 2 * (torch.sum(data_pred)).item()
     # print("diff term",diff.item())
     # print("t ",t)
     del data_pred, ref_pred
@@ -333,10 +333,10 @@ if __name__ == "__main__":
     # print(f"shapee only effect: {args.shape_only}")
     
     config = {
-        'OUTPUT_PATH' : '/home/ubuntu/NPLM-Falkon/output/bank_data/Shape_only/',
-        'DATA_PATH'   : '/home/ubuntu/NPLM-Falkon/data/creditcard.csv',
-        'PLOT_PATH'   : '/home/ubuntu/NPLM-Falkon/plot/bank/N_study/',
-        'toys'   : 80,
+        'OUTPUT_PATH' : '/home/cappelli/NPLM-Falkon/output/bank_data/Shape_only_nodiff/',
+        'DATA_PATH'   : '/home/cappelli/NPLM-Falkon/data/creditcard.csv',
+        'PLOT_PATH'   : '/home/cappelli/NPLM-Falkon/plot/bank/N_study/',
+        'toys'   : 100,
         'N_REF'  : args.N_REF,
         'N_BKG'  : args.N_BKG,
         'N_SIG'  : args.N_SIG,
